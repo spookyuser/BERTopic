@@ -117,7 +117,7 @@ def visualize_topics_per_class(topic_model,
         width=width,
         height=height,
         xaxis=dict(
-            tickformat=".0%",
+            tickformat=".0%" if as_percentage else "",
         ),
         hoverlabel=dict(
             bgcolor="white",
