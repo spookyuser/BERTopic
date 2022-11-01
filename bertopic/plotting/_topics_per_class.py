@@ -81,10 +81,13 @@ def visualize_topics_per_class(topic_model,
         words = trace_data.Words.values
         if normalize_frequency:
             x = normalize(trace_data.Frequency.values.reshape(1, -1))[0]
+            xaxis_title = "Normalized Frequency"
         if as_percentage:
-            x = trace_data.Frequency.values / trace_data.Frequency.sum() * 100
+            x = trace_data.Frequency.values / trace_data.Frequency.sum()
+            xaxis_title = "Frequency (%)" 
         else:
             x = trace_data.Frequency
+            xaxis_title = "Frequency"
         fig.add_trace(go.Bar(y=trace_data.Class,
                              x=x,
                              visible=visible,
@@ -98,7 +101,7 @@ def visualize_topics_per_class(topic_model,
     fig.update_xaxes(showgrid=True)
     fig.update_yaxes(showgrid=True)
     fig.update_layout(
-        xaxis_title="Normalized Frequency" if normalize_frequency else "Frequency",
+        xaxis_title=xaxis_title,
         yaxis_title="Class",
         title={
             'text': "<b>Topics per Class",
@@ -113,6 +116,9 @@ def visualize_topics_per_class(topic_model,
         template="simple_white",
         width=width,
         height=height,
+        xaxis=dict(
+            tickformat=".0%",
+        ),
         hoverlabel=dict(
             bgcolor="white",
             font_size=16,
