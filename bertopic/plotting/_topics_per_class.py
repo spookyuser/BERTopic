@@ -6,6 +6,7 @@ from sklearn.preprocessing import normalize
 
 def visualize_topics_per_class(topic_model,
                                topics_per_class: pd.DataFrame,
+                               as_percentage: bool = False,
                                top_n_topics: int = 10,
                                topics: List[int] = None,
                                normalize_frequency: bool = False,
@@ -80,6 +81,8 @@ def visualize_topics_per_class(topic_model,
         words = trace_data.Words.values
         if normalize_frequency:
             x = normalize(trace_data.Frequency.values.reshape(1, -1))[0]
+        if as_percentage:
+            x = trace_data.Frequency.values / trace_data.Frequency.sum() * 100
         else:
             x = trace_data.Frequency
         fig.add_trace(go.Bar(y=trace_data.Class,
