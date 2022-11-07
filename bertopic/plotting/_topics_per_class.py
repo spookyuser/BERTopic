@@ -2,12 +2,14 @@ from typing import List
 
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from sklearn.preprocessing import normalize
 
 
 def visualize_topics_per_class(
     topic_model,
     topics_per_class: pd.DataFrame,
+    denomenators_per_class: pd.DataFrame = None,
     as_percentage: bool = False,
     top_n_topics: int = 10,
     topics: List[int] = None,
@@ -83,40 +85,68 @@ def visualize_topics_per_class(
             for key, value in topic_model.topic_labels_.items()
         }
     topics_per_class["Name"] = topics_per_class.Topic.map(topic_names)
+
     data = topics_per_class.loc[topics_per_class.Topic.isin(selected_topics), :]
-    global_denomenator = (
-        data.pivot_table(index=["Class"], aggfunc="sum")
-        .sort_values(by="Frequency", ascending=False)
-        .reset_index()
-    )
 
     # Add traces
-    fig = go.Figure()
-    for index, topic in enumerate(selected_topics):
-        if index == 0:
+    fig = make_subplots(
+        rows=3,
+        cols=1,
+        specs=[[{"type": "bar"}], [{"type": "table"}], [{"type": "table"}]],
+    )
+    tables = pd.DataFrame()
+    for _, topic in enumerate(selected_topics):
+        if _ == 0:
             visible = True
         else:
             visible = "legendonly"
         trace_data = data.loc[data.Topic == topic, :]
         topic_name = trace_data.Name.values[0]
         words = trace_data.Words.values
-        print(trace_data.Class)
+
         if normalize_frequency:
             x = normalize(trace_data.Frequency.values.reshape(1, -1))[0]
             xaxis_title = "Normalized Frequency"
         if as_percentage:
-            # breakpoint()
-            # denomenator = data.pivot_table(index=["Class"], aggfunc="sum").sort_values(by="Frequency", ascending=False)
             x = []
-            for index, class_name in enumerate(trace_data.Class):
+            debug_info = []
+            numerators = []
+            denomenators = []
+            percentages = []
+
+            for _, class_name in enumerate(trace_data.Class):
                 numerator = trace_data.loc[
                     trace_data.Class == class_name, "Frequency"
                 ].values[0]
-                denomenator = global_denomenator.loc[
-                    global_denomenator.Class == class_name, "Frequency"
-                ].values[0]
+                denomenator = (
+                    denomenators_per_class.loc[
+                        denomenators_per_class.Class == class_name, "Denomenator"
+                    ]
+                    .values[0]
+                    .item()
+                    if denomenators_per_class is not None
+                    else trace_data.Frequency.sum()
+                )  # i think the else is right but idk
+                numerators.append(numerator)
+                denomenators.append(denomenator)
                 x.append(numerator / denomenator)
+                percent_str = f"{numerator / denomenator:.2%}"
+                percentages.append(percent_str)
 
+                debug_info.append(
+                    f"Equation: <em>{numerator} / {denomenator}</em> = <em>{percent_str}</em>"
+                )
+
+            debug_table = pd.DataFrame(
+                {
+                    "Class": trace_data.Class.apply(lambda x: str.strip(x)),
+                    "Numerator": numerators,
+                    "Denomenator": denomenators,
+                    "Percentage": percentages,
+                    "Topic": topic_name,
+                }
+            )
+            tables = pd.concat([tables, debug_table])
             xaxis_title = "Frequency (%)"
         else:
             x = trace_data.Frequency
@@ -126,37 +156,96 @@ def visualize_topics_per_class(
                 y=trace_data.Class,
                 x=x,
                 visible=visible,
-                marker_color=colors[index % 7],
+                marker_color=colors[_ % 7],
                 hoverinfo="text",
                 orientation="h",
                 name=topic_name,
-                hovertext=[f"<b>Topic {topic}</b><br>Words: {word}" for word in words],
-            )
+                # Show the words in the hover text and debug_info
+                hovertext=[
+                    f"{word}<br>{debug_info}"
+                    for word, debug_info in zip(words, debug_info)
+                ],
+            ),
         )
+
+    fig.append_trace(
+        go.Table(
+            header=dict(values=tables.columns.tolist(), align="left"),
+            name=topic_name,
+            cells=dict(values=tables.to_numpy().T.tolist(), align="left"),
+            # Make the last column the widest
+            columnwidth=[0.5, 0.3, 0.3, 0.3, 2, 0.1],
+        ),
+        row=2,
+        col=1,
+    )
+    if denomenators_per_class is not None:
+        fig.append_trace(
+            go.Table(
+                header=dict(
+                    values=denomenators_per_class.columns.tolist(), align="left"
+                ),
+                cells=dict(
+                    values=denomenators_per_class.to_numpy().T.tolist(), align="left"
+                ),
+            ),
+            row=3,
+            col=1,
+        )
+
+    # Also append a trace just showing the denomenators
 
     # Styling of the visualization
     fig.update_xaxes(showgrid=True)
     fig.update_yaxes(showgrid=True)
     fig.update_layout(
+        autosize=True,
         xaxis_title=xaxis_title,
         yaxis_title="Class",
         title={
-            "text": "<b>Topics per Class",
+            "text": f"<b>Topics per Class - v2</b>",
             "y": 0.95,
             "x": 0.40,
             "xanchor": "center",
             "yanchor": "top",
             "font": dict(size=22, color="Black"),
         },
-        template="simple_white",
-        width=width,
         height=height,
+        width=width,
+        template="simple_white",
         xaxis=dict(
             tickformat=".0%" if as_percentage else "",
         ),
-        hoverlabel=dict(bgcolor="white", font_size=16, font_family="Rockwell"),
+        hoverlabel=dict(
+            bgcolor="white", font_size=12, font_family="verdana", align="left"
+        ),
         legend=dict(
             title="<b>Global Topic Representation",
         ),
     )
+    updatemenu = {
+        "buttons": [
+            {
+                "label": c,
+                "method": "update",
+                "args": [
+                    {
+                        "cells": {
+                            "values": tables.T.values
+                            if c == "All"
+                            else tables.loc[tables["Topic"].eq(c)].T.values
+                        }
+                    }
+                ],
+            }
+            for c in ["All"] + tables["Topic"].unique().tolist()
+        ],
+        "direction": "down",
+        "pad": {"r": 10, "t": 10},
+        "showactive": True,
+        "x": 1.6,
+        "y": 0.6,
+    }
+    fig["layout"].update(updatemenus=[{}, updatemenu, {}])
+
     return fig

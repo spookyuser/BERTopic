@@ -1,5 +1,7 @@
-import yaml
 import warnings
+
+import yaml
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -8,34 +10,39 @@ try:
 except (KeyError, AttributeError, TypeError) as e:
     pass
 
-import re
-import joblib
 import inspect
-import numpy as np
-import pandas as pd
-from tqdm import tqdm
-from packaging import version
-from scipy.sparse import csr_matrix
-from scipy.cluster import hierarchy as sch
-from typing import List, Tuple, Union, Mapping, Any, Callable, Iterable
+import re
+from typing import Any, Callable, Iterable, List, Mapping, Tuple, Union
 
 # Models
 import hdbscan
-from umap import UMAP
-from sklearn.preprocessing import normalize
-from sklearn import __version__ as sklearn_version
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+import joblib
+import numpy as np
+import pandas as pd
+
+# Visualization
+import plotly.graph_objects as go
 
 # BERTopic
 from bertopic import plotting
 from bertopic._mmr import mmr
-from bertopic.vectorizers import ClassTfidfTransformer
+from bertopic._utils import (
+    MyLogger,
+    check_documents_type,
+    check_embeddings_shape,
+    check_is_fitted,
+)
 from bertopic.backend._utils import select_backend
-from bertopic._utils import MyLogger, check_documents_type, check_embeddings_shape, check_is_fitted
-
-# Visualization
-import plotly.graph_objects as go
+from bertopic.vectorizers import ClassTfidfTransformer
+from packaging import version
+from scipy.cluster import hierarchy as sch
+from scipy.sparse import csr_matrix
+from sklearn import __version__ as sklearn_version
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import normalize
+from tqdm import tqdm
+from umap import UMAP
 
 logger = MyLogger("WARNING")
 
@@ -796,6 +803,11 @@ class BERTopic:
         topics_per_class = pd.DataFrame(topics_per_class, columns=["Topic", "Words", "Frequency", "Class"])
 
         return topics_per_class
+    
+    def denomenators_per_class(self, selected_column: pd.Series) -> pd.DataFrame:
+        # Find the counts of the unique values in the selected column
+        df = pd.DataFrame(selected_column.value_counts())
+        return df.reset_index().rename(columns={"index": "Class", selected_column.name: "Denomenator"})
 
     def hierarchical_topics(self,
                             docs: List[int],
@@ -1850,6 +1862,7 @@ class BERTopic:
 
     def visualize_topics_per_class(self,
                                    topics_per_class: pd.DataFrame,
+                                    denomenators_per_class: pd.DataFrame = None,
                                    top_n_topics: int = 10,
                                    topics: List[int] = None,
                                    as_percentage: bool = False,
@@ -1892,6 +1905,7 @@ class BERTopic:
         check_is_fitted(self)
         return plotting.visualize_topics_per_class(self,
                                                    topics_per_class=topics_per_class,
+                                                   denomenators_per_class=denomenators_per_class,
                                                    top_n_topics=top_n_topics,
                                                    topics=topics,
                                                    as_percentage=as_percentage,
