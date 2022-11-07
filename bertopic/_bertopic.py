@@ -1862,7 +1862,7 @@ class BERTopic:
 
     def visualize_topics_per_class(self,
                                    topics_per_class: pd.DataFrame,
-                                    denomenators_per_class: pd.DataFrame = None,
+                                   denomenators_per_class: pd.DataFrame = None,
                                    top_n_topics: int = 10,
                                    topics: List[int] = None,
                                    as_percentage: bool = False,
