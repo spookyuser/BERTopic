@@ -180,6 +180,9 @@ def visualize_topics_per_class(
         col=1,
     )
     if denomenators_per_class is not None:
+        denomenators_per_class.rename(
+            columns={"Denomenator": "Frequency"}, inplace=True
+        )
         fig.append_trace(
             go.Table(
                 header=dict(
@@ -243,7 +246,6 @@ def visualize_topics_per_class(
         "direction": "down",
         "pad": {"r": 10, "t": 10},
         "showactive": True,
-        "x": 1.6,
         "y": 0.6,
     }
     fig["layout"].update(updatemenus=[{}, updatemenu, {}])
