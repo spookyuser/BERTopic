@@ -2,7 +2,6 @@ from typing import List
 
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from sklearn.preprocessing import normalize
 
 
@@ -89,12 +88,13 @@ def visualize_topics_per_class(
     data = topics_per_class.loc[topics_per_class.Topic.isin(selected_topics), :]
 
     # Add traces
-    fig = make_subplots(
-        rows=3,
-        cols=1,
-        specs=[[{"type": "bar"}], [{"type": "table"}], [{"type": "table"}]],
-    )
+
+    topic_per_class_fig = go.Figure()
+    topic_per_class_table_fig = go.Figure()
+    total_topic_per_class_table_fig = go.Figure()
+
     tables = pd.DataFrame()
+
     for _, topic in enumerate(selected_topics):
         if _ == 0:
             visible = True
@@ -151,7 +151,7 @@ def visualize_topics_per_class(
         else:
             x = trace_data.Frequency
             xaxis_title = "Frequency"
-        fig.add_trace(
+        topic_per_class_fig.add_trace(
             go.Bar(
                 y=trace_data.Class,
                 x=x,
@@ -165,10 +165,10 @@ def visualize_topics_per_class(
                     f"{word}<br>{debug_info}"
                     for word, debug_info in zip(words, debug_info)
                 ],
-            ),
+            )
         )
 
-    fig.append_trace(
+    topic_per_class_table_fig.add_trace(
         go.Table(
             header=dict(values=tables.columns.tolist(), align="left"),
             name=topic_name,
@@ -176,14 +176,12 @@ def visualize_topics_per_class(
             # Make the last column the widest
             columnwidth=[0.5, 0.3, 0.3, 0.3, 2, 0.1],
         ),
-        row=2,
-        col=1,
     )
     if denomenators_per_class is not None:
         denomenators_per_class.rename(
             columns={"Denomenator": "Frequency"}, inplace=True
         )
-        fig.append_trace(
+        total_topic_per_class_table_fig.add_trace(
             go.Table(
                 header=dict(
                     values=denomenators_per_class.columns.tolist(), align="left"
@@ -192,16 +190,14 @@ def visualize_topics_per_class(
                     values=denomenators_per_class.to_numpy().T.tolist(), align="left"
                 ),
             ),
-            row=3,
-            col=1,
         )
 
     # Also append a trace just showing the denomenators
 
     # Styling of the visualization
-    fig.update_xaxes(showgrid=True)
-    fig.update_yaxes(showgrid=True)
-    fig.update_layout(
+    topic_per_class_fig.update_yaxes(showgrid=True)
+    topic_per_class_fig.update_xaxes(showgrid=True)
+    topic_per_class_fig.update_layout(
         autosize=True,
         xaxis_title=xaxis_title,
         yaxis_title="Class",
@@ -243,11 +239,11 @@ def visualize_topics_per_class(
             }
             for c in ["All"] + tables["Topic"].unique().tolist()
         ],
-        "direction": "down",
-        "pad": {"r": 10, "t": 10},
-        "showactive": True,
-        "y": 0.6,
     }
-    fig["layout"].update(updatemenus=[{}, updatemenu, {}])
+    topic_per_class_table_fig["layout"].update(updatemenus=[{}, updatemenu, {}])
 
-    return fig
+    return (
+        topic_per_class_fig,
+        topic_per_class_table_fig,
+        total_topic_per_class_table_fig,
+    )
